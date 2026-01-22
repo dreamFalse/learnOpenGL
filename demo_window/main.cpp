@@ -3,6 +3,10 @@
 
 #include <iostream>
 
+#define STB_IMAGE_IMPLEMENTATION 
+#include "stb_image.h" 
+#include "shader.h"
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height); 
 void processInput(GLFWwindow *window); 
 
@@ -11,24 +15,17 @@ const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600; 
 
 float vertices[] = {
-    -0.5f, -0.5f, 0.0f, 
-    0.5f, -0.5f, 0.0f, 
-    0.0f, 0.5f, 0.0f
+//     ---- 位置 ----       ---- 颜色 ----     - 纹理坐标 -
+     0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,   // 右上
+     0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // 右下
+    -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // 左下
+    -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f    // 左上
+};
+
+unsigned int indices[] = {
+    0, 1, 3,    // first triangle 
+    1, 2, 3     // second triangle 
 }; 
-
-const char *vertexShaderSource = "#version 330 core \n"
-    "layout (location = 0) in vec3 aPos;\n"
-    "void main() \n"
-    "{\n"
-    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0); \n"
-    "}\0";
-
-const char *fragmentShaderSource = "#version 330 core \n"
-            "out vec4 FragColor; \n"
-            "void main() \n"
-            "{"
-            "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f); "
-            "}";
 
 int main()
 {
@@ -53,48 +50,23 @@ int main()
         return -1; 
     }
 
-    // vertex shader 
-    unsigned int vertexShader; 
-    vertexShader = glCreateShader(GL_VERTEX_SHADER); 
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL); 
-    glCompileShader(vertexShader); 
+    Shader ourShader("shader_dir/4.1.texture.vs", "shader_dir/4.1.texture.fs"); 
 
-    int success; 
-    char infoLog[512]; 
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success); 
-    if (!success) {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog); 
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl; 
-    }
-
-    // fragment shader 
-    unsigned int fragmentShader; 
-    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER); 
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL); 
-    glCompileShader(fragmentShader); 
-
-    // program 
-    unsigned int shaderProgram; 
-    shaderProgram = glCreateProgram(); 
-    glAttachShader(shaderProgram, vertexShader); 
-    glAttachShader(shaderProgram, fragmentShader); 
-    glLinkProgram(shaderProgram); 
-
-    glDeleteShader(vertexShader); 
-    glDeleteShader(fragmentShader); 
-
-    // set up vertex data (and buffers) and configure vertex attributes 
-    float vertices[] = {
-         0.5f,  0.5f, 0.0f,  // top right
-         0.5f, -0.5f, 0.0f,  // bottom right
-        -0.5f, -0.5f, 0.0f,  // bottom left
-        -0.5f,  0.5f, 0.0f   // top left 
-    }; 
-    unsigned int indices[] = {
-        0, 1, 3,    // first triangle 
-        1, 2, 3     // second triangle 
-    }; 
-
+    // Texture 
+    int width, height, nrChannels; 
+    unsigned char *data = stbi_load("resources/wall.jpg", &width, &height, &nrChannels, 0); 
+    unsigned int texture; 
+    glGenTextures(1, &texture); 
+    glBindTexture(GL_TEXTURE_2D, texture); 
+    // 为当前绑定的纹理对象设置环绕 过滤方式
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data); 
+    glGenerateMipmap(GL_TEXTURE_2D); 
+    stbi_image_free(data); 
+    
     // vertex buffer objects 
     unsigned int VBO, VAO, EBO;  
     glGenVertexArrays(1, &VAO);  
@@ -110,8 +82,12 @@ int main()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO); 
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(0 * sizeof(float))); 
     glEnableVertexAttribArray(0); 
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float))); 
+    glEnableVertexAttribArray(1); 
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float))); 
+    glEnableVertexAttribArray(2); 
 
     glBindBuffer(GL_ARRAY_BUFFER, 0); 
 
@@ -124,8 +100,11 @@ int main()
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f); 
         glClear(GL_COLOR_BUFFER_BIT); 
 
+        // bind texture 
+        glBindTexture(GL_TEXTURE_2D, texture); 
+
         // draw first triangle 
-        glUseProgram(shaderProgram); 
+        ourShader.use(); 
         glBindVertexArray(VAO); 
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0); 
 
