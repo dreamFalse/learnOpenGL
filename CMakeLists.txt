@@ -6,3 +6,4 @@ find_package(glfw3 REQUIRED)
 
 add_subdirectory(demo_window)
 add_subdirectory(demo_lighting)
+add_subdirectory(demo_loadmodel)
